@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "gitbook build",
-    "serve": "gitbook serve"
+    "build": "honkit build",
+    "serve": "honkit serve"
   },
   "repository": {
     "type": "git",
@@ -17,7 +17,8 @@
     "url": "https://github.com/yamat47/97-things-every-programmer-should-know/issues"
   },
   "homepage": "https://github.com/yamat47/97-things-every-programmer-should-know#readme",
-  "dependencies": {
-    "gitbook-cli": "^2.3.2"
+  "dependencies": {},
+  "devDependencies": {
+    "honkit": "^3.6.6"
   }
 }
