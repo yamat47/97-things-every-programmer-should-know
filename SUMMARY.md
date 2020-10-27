@@ -8,3 +8,4 @@
 * [美はシンプルさに宿る](./things/thing-5.md)
 * [リファクタリングの際に注意すべきこと](./things/thing-6.md)
 * [共有は慎重に](./things/thing-7.md)
+* [ボーイスカウト・ルール](./things/thing-8.md)
