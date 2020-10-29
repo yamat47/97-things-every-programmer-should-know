@@ -10,3 +10,4 @@
 * [共有は慎重に](./things/thing-7.md)
 * [ボーイスカウト・ルール](./things/thing-8.md)
 * [他人よりまず自分を疑う](./things/thing-9.md)
+* [ツールの選択は慎重に](./things/thing-10.md)
