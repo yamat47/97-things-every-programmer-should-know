@@ -1,0 +1,7 @@
+.bookignore
+.dockerignore
+.node-version
+Dockerfile
+package.json
+package-lock.json
+scripts

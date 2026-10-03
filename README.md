@@ -1,18 +1,34 @@
-プログラマが知るべき97のこと
-====
+# 97-things-every-programmer-should-know
 
-このサイトではオライリージャパンより出版されています[『プログラマが知るべき97のこと』](https://www.amazon.co.jp/dp/4873114799) の文字を起こし掲載しています。
+『プログラマが知るべき97のこと』のエッセイを [HonKit](https://github.com/honkit/honkit) でサイトにして公開するリポジトリです。サイトの説明と本文のライセンスは [book/README.md](book/README.md) にあります。
 
-オライリージャパンによる公式なサイトではありませんのでご注意ください。
+## 構成
 
-### License
+- `book/` — HonKit のプロジェクト。本文（`things/`）、目次（`SUMMARY.md`）、npm の設定を置く
+- `book/scripts/import-wikisource.mjs` — 日本語版ウィキソースから本文を取り込むスクリプト
+- `compose.yaml` — 開発用コンテナの定義
+- `.github/workflows/deploy.yml` — GitHub Pages へのデプロイ
 
-> 本書のここのエッセイは、オープンソースモデルに従い、ほぼ無制限で利用が可能です。クリエイティブ・コモンズ表示3.0の条件の下で、自由に使用することができるのです。つまり、どのエッセイも、著者の名前を明記すれば、自由に転載、改変が可能であるということです。
->
-> 『プログラマが知るべき97のこと』Ⅻ より引用
+## 開発
 
-このサイトはこちらの記載に則り作成、公開しています。
+開発は Docker コンテナの中で行います。ホストに Node.js は要りません。
 
-### Contribution
+```sh
+# プレビュー（http://localhost:4000）
+docker compose up
 
-誤字や脱字を見つけた際はお手数ですが [こちらのリポジトリ](https://github.com/yamat47/97-things-every-programmer-should-know) まで報告いただけますと幸いです。
+# ビルド（book/_book に出力）
+docker compose run --rm book npm run build
+
+# ウィキソースから本文を取り込み直す
+docker compose run --rm book npm run import
+```
+
+`book/things/` と `book/SUMMARY.md` は取り込みスクリプトの生成物です。手で編集せず、スクリプトを直して再生成します。
+
+依存パッケージを変えたときは、イメージとボリュームを作り直します。
+
+```sh
+docker compose down --volumes
+docker compose build
+```
