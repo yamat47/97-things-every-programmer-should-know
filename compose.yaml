@@ -1,0 +1,14 @@
+services:
+  book:
+    build:
+      context: ./book
+    volumes:
+      - ./book:/book
+      # イメージ内で npm ci した node_modules を、ホストのマウントで隠さないようにする
+      - node_modules:/book/node_modules
+    ports:
+      - "4000:4000"
+      - "35729:35729"
+
+volumes:
+  node_modules:

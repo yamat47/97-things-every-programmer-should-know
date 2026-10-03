@@ -1,7 +1,7 @@
-.claude
-.github
-.gitignore
+.bookignore
+.dockerignore
 .node-version
+Dockerfile
 package.json
 package-lock.json
-.bookignore
+scripts
