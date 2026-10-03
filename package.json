@@ -17,8 +17,7 @@
     "url": "https://github.com/yamat47/97-things-every-programmer-should-know/issues"
   },
   "homepage": "https://github.com/yamat47/97-things-every-programmer-should-know#readme",
-  "dependencies": {},
   "devDependencies": {
-    "honkit": "^3.6.6"
+    "honkit": "^6.2.2"
   }
 }

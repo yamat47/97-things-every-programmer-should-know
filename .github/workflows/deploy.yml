@@ -1,30 +1,39 @@
-name: deploy s3
+name: deploy
 
 on:
   push:
     branches:
       - main
+  pull_request:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # デプロイは途中で止めず、PR のビルドだけ新しい実行で打ち切る
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
+    permissions:
+      contents: read # checkout
 
     steps:
+      # action は SHA で固定するのが原則だが、github-toolkit だけは例外として @main を直接追いかける。
+      # 自分で管理しているリポジトリで、上流 action の SHA 固定と Dependabot での更新は toolkit 側で行うため。
+      # toolkit の main の変更は、レビューを通さず次の実行からそのまま入る
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: yamat47/github-toolkit/actions/checkout@main
+        with:
+          persist-credentials: false
 
       - name: setup node
-        uses: actions/setup-node@v1
+        uses: yamat47/github-toolkit/actions/setup-node@main
         with:
-          node-version: '10.x'
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ap-northeast-1
+          node-version-file: .node-version
 
       - name: install
         run: npm ci
@@ -32,8 +41,24 @@ jobs:
       - name: build
         run: npm run build
 
-      - name: Upload file to S3
-        env:
-          S3_CONTENTS_BUCKET: ${{ secrets.S3_CONTENTS_BUCKET }}
-        run: |
-          aws s3 sync ./_book s3://$S3_CONTENTS_BUCKET/ --quiet
+      - name: Upload Pages artifact
+        uses: yamat47/github-toolkit/actions/upload-pages-artifact@main
+        with:
+          path: _book
+
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      pages: write # deploy-pages
+      id-token: write # deploy-pages がデプロイ元の検証に OIDC トークンを使う
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: yamat47/github-toolkit/actions/deploy-pages@main
