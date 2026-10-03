@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "build": "honkit build",
-    "serve": "honkit serve"
+    "serve": "honkit serve",
+    "import": "node scripts/import-wikisource.mjs",
+    "test": "node --test \"scripts/*.test.mjs\""
   },
   "repository": {
     "type": "git",
