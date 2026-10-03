@@ -1,5 +1,5 @@
 // 日本語版ウィキソースの『プログラマが知るべき97のこと』から各エッセイを取得し、
-// things/thing-N.md と SUMMARY.md を生成する。
+// things/thing-N.md（97 本）、things/ja-N.md（日本人プログラマによる 10 本）、SUMMARY.md を生成する。
 //
 // 使い方: npm run import
 //
@@ -13,10 +13,14 @@ const API = "https://ja.wikisource.org/w/api.php";
 const USER_AGENT =
   "97-things-import/1.0 (https://github.com/yamat47/97-things-every-programmer-should-know)";
 const ROOT = "プログラマが知るべき97のこと";
-// 目次の先頭 97 本だけを対象にする。続く「日本人プログラマによる 10 本」は、
-// 個別ページにライセンスの明記がないため取り込まない
-const ESSAY_COUNT = 97;
-const LICENSE_PATTERN = /CC-by-3\.0-US/i;
+// 目次に並ぶ順のまとまりごとの、ファイル名の接頭辞と本数
+const GROUPS = [
+  { prefix: "thing", count: 97 },
+  { prefix: "ja", count: 10 },
+];
+// 日本人プログラマによる 10 本は個別ページにライセンスの明記がないので、
+// 作品全体を対象とする目次ページの表記をライセンスの根拠にする
+const LICENSE_TEMPLATE = /\{\{CC-BY-3\.0-US\}\}/i;
 const LICENSE_URL = "https://creativecommons.org/licenses/by/3.0/us/deed.ja";
 
 async function api(params) {
@@ -31,13 +35,34 @@ async function api(params) {
   return response.json();
 }
 
-async function fetchTitles() {
-  const data = await api({ action: "parse", page: ROOT, prop: "wikitext" });
-  const titles = [...data.parse.wikitext.matchAll(/^#\[\[\/([^|\]]+)\|/gm)].map((m) => m[1]);
-  if (titles.length < ESSAY_COUNT) {
-    throw new Error(`Expected at least ${ESSAY_COUNT} essays in the index, found ${titles.length}`);
+// 目次のエッセイ一覧を、間に挟まる見出しの行で区切ったまとまりに分ける
+export function parseIndex(wikitext) {
+  const groups = [];
+  let heading = null;
+  let current = null;
+  for (const line of wikitext.slice(templateEnd(wikitext, wikitext.search(/\{\{header/i))).split("\n")) {
+    const item = line.match(/^#\[\[\/([^|\]]+)/);
+    if (item) {
+      if (!current) groups.push((current = { heading, titles: [] }));
+      current.titles.push(item[1]);
+    } else if (line.trim() && !/^(\[\[Category:|\{\{)/.test(line)) {
+      heading = line.trim();
+      current = null;
+    }
   }
-  return titles.slice(0, ESSAY_COUNT);
+  return groups;
+}
+
+async function fetchIndex() {
+  const data = await api({ action: "parse", page: ROOT, prop: "wikitext" });
+  const { wikitext } = data.parse;
+  if (!LICENSE_TEMPLATE.test(wikitext)) throw new Error("No CC BY 3.0 US notice on the index page");
+  const groups = parseIndex(wikitext);
+  const counts = groups.map((group) => group.titles.length).join(", ");
+  if (counts !== GROUPS.map((group) => group.count).join(", ")) {
+    throw new Error(`Unexpected essay groups in the index: ${counts}`);
+  }
+  return groups;
 }
 
 async function fetchPages(titles) {
@@ -89,19 +114,18 @@ function templateEnd(text, start) {
   throw new Error("Unclosed template");
 }
 
-function splitHeader(wikitext) {
+export function splitHeader(wikitext) {
   const start = wikitext.search(/\{\{header/i);
   if (start === -1) throw new Error("No header template");
   const end = templateEnd(wikitext, start);
   const header = wikitext.slice(start, end);
   const field = (name) => {
-    const match = header.match(new RegExp(`\\|\\s*${name}\\s*=\\s*([^\\n]*)`));
+    const match = header.match(new RegExp(`\\|\\s*${name}\\s*=[ \\t]*([^\\n]*)`));
     return match ? match[1].trim() : "";
   };
   return {
     author: field("author"),
     translator: field("translator"),
-    header,
     body: wikitext.slice(0, start) + wikitext.slice(end),
   };
 }
@@ -253,9 +277,8 @@ export function convertBody(wikitext, linkFor) {
 }
 
 function renderEssay(title, page, linkFor) {
-  const { author, translator, header, body } = splitHeader(page.wikitext);
+  const { author, translator, body } = splitHeader(page.wikitext);
   if (!author) throw new Error("No author");
-  if (!LICENSE_PATTERN.test(header)) throw new Error("No CC BY 3.0 US notice on the page");
 
   let markdown = convertBody(body, linkFor);
   // HonKit は本文を Nunjucks テンプレートとして評価するので、コード中の波括弧を守る
@@ -275,9 +298,12 @@ function renderEssay(title, page, linkFor) {
 
 // テストから変換の関数だけを読み込めるよう、取り込みは直接実行されたときに限る
 if (import.meta.main) {
-  const titles = await fetchTitles();
+  const groups = await fetchIndex();
+  const titles = groups.flatMap((group) => group.titles);
   const pages = await fetchPages(titles);
-  const files = titles.map((_, index) => `thing-${index + 1}.md`);
+  const files = groups.flatMap((group, g) =>
+    group.titles.map((_, index) => `${GROUPS[g].prefix}-${index + 1}.md`),
+  );
 
   // 本文中のウィキリンクは、転送前と転送後のどちらのページ名でも書かれうる
   const links = new Map();
@@ -296,14 +322,13 @@ if (import.meta.main) {
     }
   }
 
-  const summary = [
-    "# Summary",
-    "",
-    `* [${ROOT}](README.md)`,
-    ...titles.map((title, index) => `* [${title}](./things/${files[index]})`),
-    "",
-  ].join("\n");
-  await writeFile(join(BOOK_DIR, "SUMMARY.md"), summary);
+  const summary = ["# Summary", "", `* [${ROOT}](README.md)`];
+  let index = 0;
+  for (const group of groups) {
+    if (group.heading) summary.push("", `## ${group.heading}`, "");
+    for (const title of group.titles) summary.push(`* [${title}](./things/${files[index++]})`);
+  }
+  await writeFile(join(BOOK_DIR, "SUMMARY.md"), `${summary.join("\n")}\n`);
 
   console.log(`Imported ${titles.length} essays.`);
 }

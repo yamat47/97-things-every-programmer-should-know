@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { convertBody, convertTable } from "./import-wikisource.mjs";
+import { convertBody, convertTable, parseIndex, splitHeader } from "./import-wikisource.mjs";
 
 const noLinks = () => null;
 
@@ -72,4 +72,31 @@ test("未対応のテンプレートが残ったら失敗する", () => {
 test("wikitable をセル属性なしの Markdown の表にする", () => {
   const table = "{|class=wikitable\n! rowspan=1|名前\n! 値\n|-\n|a\n|<1\n|}";
   assert.equal(convertTable(table), "| 名前 | 値 |\n| --- | --- |\n| a | <1 |");
+});
+
+test("目次を見出しの行で区切ったまとまりに分ける", () => {
+  const index = [
+    "{{header\n | title = 本\n | notes = {{edition}}\n出典の説明\n}}",
+    "#[[/一つめ|一つめ]]",
+    "#[[/二つめ (補足)|二つめ]]",
+    "",
+    "後半の見出し",
+    "",
+    "#[[/三つめ|三つめ]]",
+    "",
+    "[[Category:分類|*]]",
+    "{{CC-BY-3.0-US}}",
+  ].join("\n");
+  assert.deepEqual(parseIndex(index), [
+    { heading: null, titles: ["一つめ", "二つめ (補足)"] },
+    { heading: "後半の見出し", titles: ["三つめ"] },
+  ]);
+});
+
+test("ヘッダーの欄を読み、空の欄は次の行を取り込まずに空とする", () => {
+  const page = "{{header\n | author   =著者名\n | translator =\n | next     =[[本/次|次]]\n}}\n本文";
+  const { author, translator, body } = splitHeader(page);
+  assert.equal(author, "著者名");
+  assert.equal(translator, "");
+  assert.equal(body, "\n本文");
 });
