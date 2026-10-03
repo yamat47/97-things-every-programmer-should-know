@@ -20,6 +20,9 @@ jobs:
     timeout-minutes: 5
     permissions:
       contents: read # checkout
+    defaults:
+      run:
+        working-directory: book
 
     steps:
       # action は SHA で固定するのが原則だが、github-toolkit だけは例外として @main を直接追いかける。
@@ -33,7 +36,7 @@ jobs:
       - name: setup node
         uses: yamat47/github-toolkit/actions/setup-node@main
         with:
-          node-version-file: .node-version
+          node-version-file: book/.node-version
 
       - name: install
         run: npm ci
@@ -44,7 +47,7 @@ jobs:
       - name: Upload Pages artifact
         uses: yamat47/github-toolkit/actions/upload-pages-artifact@main
         with:
-          path: _book
+          path: book/_book
 
   deploy:
     if: github.ref == 'refs/heads/main'
